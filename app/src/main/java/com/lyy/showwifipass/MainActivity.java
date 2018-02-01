@@ -2,12 +2,14 @@ package com.lyy.showwifipass;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -40,13 +42,13 @@ public class MainActivity extends AppCompatActivity {
         initView();
         obtainPermission();
 
-        String wifiInfo = getWifiInfo().toString();
+        String wifiInfo = getWifiInfo();
         handleInfo(wifiInfo);
         showWifiInfo();
 
     }
 
-    //处理获取到的wifi信息
+    //解析获取到的wifi信息
     private void handleInfo(String info) {
         Pattern network = Pattern.compile("network=\\{([^\\}]+)\\}", Pattern.DOTALL);
         Matcher networkMatcher = network.matcher(info);
@@ -76,6 +78,17 @@ public class MainActivity extends AppCompatActivity {
         MyAdapter myAdapter = new MyAdapter();
         mLvWifiInfo.setAdapter(myAdapter);
         myAdapter.notifyDataSetChanged();
+        mLvWifiInfo.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                ClipboardManager cmb = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                assert cmb != null;
+                cmb.setPrimaryClip(ClipData.newPlainText(getString(R.string.item_pasword_hint), wifiInfoList.get(position)
+                        .getPsk()));
+                Toast.makeText(getApplicationContext(), R.string.copy_success, Toast.LENGTH_SHORT).show();
+                return true;
+            }
+        });
     }
 
     //获取读写权限
@@ -94,9 +107,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //获取Wifi信息
-    private StringBuffer getWifiInfo() {
-        StringBuffer wifiConf = new StringBuffer();
-
+    private String getWifiInfo() {
+        StringBuilder wifiConf = new StringBuilder();
         Process process = null;
         DataOutputStream dataOutputStream = null;
         DataInputStream dataInputStream = null;
@@ -130,12 +142,13 @@ public class MainActivity extends AppCompatActivity {
                 if (dataInputStream != null) {
                     dataInputStream.close();
                 }
+                assert process != null;
                 process.destroy(); // 线程销毁
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
-
-        return wifiConf;
+        return wifiConf.toString();
     }
 
     private void initView() {
